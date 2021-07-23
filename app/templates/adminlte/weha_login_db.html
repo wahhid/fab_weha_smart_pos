@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>WEHA | Log in</title>
+  <!-- Tell the browser to be responsive to screen width -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">
+  <!-- Ionicons -->
+  <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+  <!-- icheck bootstrap -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/icheck-bootstrap/icheck-bootstrap.min.css') }}">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
+  <!-- Google Font: Source Sans Pro -->
+  <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+</head>
+<body class="hold-transition login-page">
+<div class="login-box">
+  <div class="login-logo">
+    <a href="/"><b>SMART POS</b></a>
+  </div>
+  <!-- /.login-logo -->
+  <div class="card">
+    <div class="card-body login-card-body">
+      <p class="login-box-msg">Sign in to start your session</p>
+          <form class="form" action="" method="post" name="login">
+            {{form.hidden_tag()}}
+            <div class="help-block">{{_("Enter your login and password below")}}:</div>
+            <div class="control-group{% if form.errors.openid is defined %} error{% endif %}">
+                <div class="controls">
+                  <label class="control-label" for="openid">{{_("Username")}}:</label>
+                  <div class="form-group">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                          <span class="input-group-text">
+                            <i class="fa fa-user"></i>
+                          </span>
+                        </div>
+                      {{ form.username(size = 80, class = "form-control", autofocus = true) }}
+                      {% for error in form.errors.get('openid', []) %}
+                      <span class="help-inline">[{{error}}]</span><br>
+                      {% endfor %}
+                    </div>
+                  </div>
+
+                  <label class="control-label" for="openid">{{_("Password")}}:</label>
+                  <div class="form-group">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                          <span class="input-group-text">
+                            <i class="fa fa-key"></i>
+                          </span>
+                        </div>
+                        {{ form.password(size = 80, class = "form-control") }}
+                    </div>
+                    {% for error in form.errors.get('openid', []) %}
+                    <span class="help-inline">[{{error}}]</span><br>
+                    {% endfor %}
+                  </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <br>
+                    <div>
+                        <input class="btn btn-primary btn-block" type="submit" value="{{_('Sign In')}}">
+                        {% if appbuilder.sm.auth_user_registration %}
+                        <a href="{{appbuilder.sm.get_url_for_registeruser}}" class="btn btn-block btn-primary" data-toggle="tooltip" rel="tooltip"
+                        title="{{_('If you are not already a user, please register')}}">
+                            {{_('Register')}}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+          </form>
+      <div class="social-auth-links text-center mb-3">
+        <p>- OR -</p>
+        <a href="#" class="btn btn-block btn-primary">
+          <i class="fab fa-facebook mr-2"></i> Sign in using Facebook
+        </a>
+        <a href="#" class="btn btn-block btn-danger">
+          <i class="fab fa-google-plus mr-2"></i> Sign in using Google+
+        </a>
+      </div>
+      <!-- /.social-auth-links -->
+
+      <p class="mb-1">
+        <a href="forgot-password.html">I forgot my password</a>
+      </p>
+      <p class="mb-0">
+        <a href="register.html" class="text-center">Register a new membership</a>
+      </p>
+    </div>
+    <!-- /.login-card-body -->
+  </div>
+</div>
+<!-- /.login-box -->
+
+<!-- jQuery -->
+<script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
+<!-- Bootstrap 4 -->
+<script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<!-- AdminLTE App -->
+<script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
+
+</body>
+</html>

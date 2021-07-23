@@ -1,0 +1,46 @@
+{% extends "appbuilder/base.html" %}
+{% import 'appbuilder/general/lib.html' as lib %}
+{% import 'general/lib.html' as weha_lib %}
+
+{% block content %}
+
+{{ weha_lib.adminlte_card_begin(title) }}
+
+{% block show_form %}
+    {{ widgets.get('show')()|safe }}
+{% endblock show_form %}
+
+{% block related_views %}
+    <div class="card card-warning card-tabs">
+        {% if related_views is defined %}
+            <div class="card-header">
+                <ul class="nav nav-tabs" id="custom-tabs-one-tab" role="tablist">
+                    {% for view in related_views %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="#tab{{ loop.index - 1 }}" data-toggle="tab">{{ view.title }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="custom-tabs-one-tabContent">
+                    {% for view in related_views %}
+                        <div class="tab-pane fade" id="tab{{ loop.index - 1 }}" role="tab">
+                            {{ widgets.get('related_views')[loop.index - 1](pk = pk)|safe }}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        </ul>
+    </div>
+{% endblock related_views %}
+
+
+{{ weha_lib.adminlte_card_end() }}
+
+{% endblock %}
+
+{% block add_tail_js %}
+<script src="{{url_for('appbuilder.static',filename='js/ab_keep_tab.js')}}"></script>
+{% endblock %}

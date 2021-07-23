@@ -1,0 +1,153 @@
+{% from "appbuilder/general/lib.html" import render_set_page_size, lnk_add, render_actions, lnk_back, lnk_edit with context %}
+
+{% macro adminlte_card_begin(title, extra_class="") %}
+<div class="card  {{ extra_class }}" style="padding:10px;">
+    <div class="card-header">
+        <h3 class="card-title">{{title}}</h3>
+    </div>
+  <div class="card-body p-0">
+{% endmacro %}
+{% macro adminlte_card_end() %}
+  </div>
+</div>
+{% endmacro %}
+
+
+{% macro render_pagination(page, page_size, count, modelview_name) %}
+
+    {% if not page %} {% set page = 0 %} {% endif %}
+    {% set pages = ((count / page_size)|round(0,'ceil')|int)%}
+    {% if pages > 1 %}
+    <ul class="pagination pagination-sm float-right">
+
+        {% set init_page = 0 %}
+        {% set min = page - 3 %}
+        {% set max = page + 3 + 1 %}
+
+        {% if min < 0 %}
+            {% set max = max - min %}
+        {% endif %}
+        {% if max >= pages %}
+            {% set min = min - max + pages %}
+        {% endif %}
+
+        {% if min < 0 %}
+            {% set min = 0 %}
+        {% endif %}
+        {% if max >= pages %}
+            {% set max = pages %}
+        {% endif %}
+
+    {% if min > 0 %}
+    <li>
+        <a href="{{ init_page | link_page(modelview_name) }}">&laquo;</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="javascript:void(0)">&laquo;</a>
+    </li>
+    {% endif %}
+    {% if page > 0 %}
+    <li>
+        <a class="page-link" href="{{ (page - 1) | link_page(modelview_name) }}">&lt;</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="javascript:void(0)">&lt;</a>
+    </li>
+    {% endif %}
+
+    {% for p in range(min, max) %}
+        {% if page == p %}
+        <li class="page-item">
+            <a class="page-link" href="javascript:void(0)">{{ (p + 1) }}</a>
+        </li>
+        {% else %}
+        <li class="page-item"> 
+            <a class="page-link" href="{{ p | link_page(modelview_name) }}">{{ (p + 1) }}</a>
+        </li>
+        {% endif %}
+    {% endfor %}
+
+    {% if page + 1 < pages %}
+        <li class="page-item">
+            <a class="page-link" href="{{ (page + 1) | link_page(modelview_name) }}">&gt;</a>
+        </li>
+    {% else %}
+        <li class="page-item">
+            <a class="page-link" href="javascript:void(0)">&gt;</a>
+        </li>
+    {% endif %}
+    {% if max < pages %}
+        <li class="page-item">
+            <a class="page-link" href="{{ (pages - 1) | link_page(modelview_name) }}">&raquo;</a>
+        </li>
+    {% else %}
+        <li class="page-item">
+            <a class="page-link" href="javascript:void(0)">&raquo;</a>
+        </li>
+    {% endif %}
+</ul>
+{% endif %}
+{% endmacro %}
+
+{% macro render_list_header(can_add, page, page_size, count, filters, actions, modelview_name) %}
+    {{ render_pagination(page, page_size, count, modelview_name) }}
+    {{ render_set_page_size(page, page_size, count, modelview_name) }}
+    {% if can_add %}
+        {% set endpoint = modelview_name + '.add' %}
+        {% set path = endpoint | safe_url_for %}
+        {% if path %}
+            {% set path = path | set_link_filters(filters) %}
+            {{ lnk_add(path) }}
+        {% endif %}
+    {% endif %}
+    {{ render_actions(actions, modelview_name) }}
+    {{ lnk_back() }}
+    <div class="pull-right">
+        <strong>{{ _('Record Count') }}:</strong> {{ count }}
+    </div>
+{% endmacro %}
+
+{% macro btn_crud(can_show, can_edit, can_delete, pk, modelview_name, filters) %}
+    <div class="btn-group btn-group-xs">
+        {% if can_show %}
+            {% set endpoint = modelview_name + '.show' %}
+            {% set path = endpoint | safe_url_for(pk=pk) %}
+            {% if path %}
+                {% set path = path | set_link_filters(filters) %}
+                {{ lnk_show(path) }}
+            {% endif %}
+        {% endif %}
+        {% if can_edit %}
+            {% set endpoint = modelview_name + '.edit' %}
+            {% set path = endpoint | safe_url_for(pk=pk) %}
+            {% if path %}
+                {% set path = path | set_link_filters(filters) %}
+                {{ lnk_edit(path) }}
+            {% endif %}
+        {% endif %}
+        {% if can_delete %}
+            {% set endpoint = modelview_name + '.delete' %}
+            {% set path = endpoint | safe_url_for(pk=pk) %}
+            {% if path %}
+                {{ lnk_delete(path) }}
+            {% endif %}
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro lnk_show(my_href) %}
+    <a href="{{my_href}}" class="btn btn-sm btn-primary" data-toggle="tooltip" rel="tooltip"
+       title="{{_('Show record')}}">
+        <i class="fa fa-search"></i>
+    </a>
+{% endmacro %}
+
+
+{% macro lnk_delete(my_href) %}
+    <a href="javascript:void(0)" class="btn btn-sm btn-danger confirm" rel="tooltip" title="{{_('Delete record')}}"
+       onclick="var a = new AdminActions(); return a.execute_single_delete('{{my_href}}','{{ _('You sure you want to delete this item?') }}');">
+        <i class="fa fa-trash"></i>
+    </a>
+{% endmacro %}
