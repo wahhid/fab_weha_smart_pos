@@ -6,3 +6,5 @@ app.db
 env
 venv
 *.sublime*
+./migration
+app.db.bak
