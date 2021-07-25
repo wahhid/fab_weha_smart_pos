@@ -1,3 +1,4 @@
+
 import json
 from flask_appbuilder.const import API_RESULT_RES_KEY
 from flask_appbuilder.models.sqla import Model
