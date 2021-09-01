@@ -1,5 +1,7 @@
 
 import json
+from operator import pos
+from os import access
 from flask_appbuilder.const import API_RESULT_RES_KEY
 from flask_appbuilder.models.sqla import Model
 from marshmallow.decorators import post_dump
@@ -10,11 +12,11 @@ from flask_appbuilder.security.decorators import protect
 from flask_appbuilder.security.sqla.models import User
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy.sql.functions import user
-from . import appbuilder, db, models
+from . import appbuilder, celery, db, models
 from flask_login import current_user
 from jinja2 import Template
 from datetime import datetime
-
+import requests
 
 
 def get_user_id():
@@ -55,9 +57,7 @@ class DocumentApi(BaseApi):
     def render(self, code):
         template = Template(f)
         document_template = db.session.query(models.DocumentTemplate).filter_by(code=code).first()
-
         return self.response(200, data={})
-
 
 class PosCategoryRestApi(ModelRestApi):
     resource_name = 'pos_category'
@@ -119,12 +119,105 @@ class PosSessionRestApi(ModelRestApi):
             )
 
 class PosOrderRestApi(ModelRestApi):
+
     resource_name = "pos_order"
     datamodel = SQLAInterface(models.PosOrder)
-    show_columns = ['name','pos_session_id','total_orderline', 'total_paymentline', 'total_item', 'state']
-    list_columns = ['name','pos_session_id','total_orderline', 'total_paymentline', 'total_item', 'state']
+    show_columns = ['name','pos_session_id', 'partner', 'total_orderline', 'total_paymentline', 'total_item', 'state']
+    list_columns = ['name','pos_session_id', 'partner', 'total_orderline', 'total_paymentline', 'total_item', 'state']
     search_columns = ['pos_session_id', 'user_id', 'state']
 
+    #@celery.task()
+    def upload_transaction(self, pos_order_id): 
+        try:
+            pos_order = db.session.query(models.PosOrder).get(pos_order_id)
+            pos_order_sync = {
+                "name": pos_order.name,
+                "user_id": pos_order.user.id,
+                "date_order": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                #"smart_pos_session_id": pos_order.pos_session.id,
+                "smart_pos_session_id": {
+                    "id": pos_order.pos_session.id,
+                    "name": pos_order.pos_session.name,
+                    "session_date": pos_order.pos_session.session_date.strftime('%Y-%m-%d'),
+                    "date_open": "2021-08-06 07:30:00",
+                    "config_id": {
+                        "id": pos_order.pos_session.config.id,
+                        "name": pos_order.pos_session.config.name,
+                        "code": pos_order.pos_session.config.code
+                }
+                },
+                "amount_total": pos_order.amount_total,
+                "amount_paid": pos_order.amount_paid,
+                "state": pos_order.state,
+            }
+            smart_pos_order_line_ids = []
+            pos_order_lines = db.session.query(models.PosOrderLine).filter_by(order_id=pos_order.id).all()
+            for pos_order_line in pos_order_lines:
+                value = {
+                    "description": pos_order_line.name,
+                    "product_id": pos_order_line.product.id,
+                    "qty": pos_order_line.qty,
+                    "price_unit": pos_order_line.price_unit,
+                    "tax_id": False,
+                    "amount_tax": 0,
+                    "amount_discount": 0,
+                    "amount_total": pos_order_line.price_subtotal
+                }
+                smart_pos_order_line_ids.append(value)
+
+            pos_order_sync.update({'smart_pos_order_line_ids':smart_pos_order_line_ids})
+
+            smart_pos_order_payment_ids = []
+            pos_order_payments = db.session.query(models.PosPayment).filter_by(pos_order_id=pos_order.id).all()
+            for pos_order_payment in pos_order_payments:
+                value = {
+                    "smart_pos_payment_method_id": pos_order_payment.pos_payment_method.id,
+                    "discount_in_percentage": 0.0,
+                    "amount_discount": 0.0,
+                    "amount_total": pos_order_payment.amount
+                }
+                smart_pos_order_payment_ids.append(value)
+            pos_order_sync.update({'smart_pos_order_payment_ids':smart_pos_order_payment_ids})
+            print(json.dumps(pos_order_sync))
+            
+            url = "http://smart-pos-dev.server002.weha-id.com/api/auth/token?db=smart-pos-dev&login=admin&password=P@ssw0rd"
+            payload={}
+            headers={}
+            response = requests.request("GET", url, headers=headers)
+            if response.status_code == 200:
+                response_json = response.json()
+                access_token = response_json['access_token']
+                headers = {
+                    'Content-Type': 'application/json',
+                    'access-token': access_token,
+                }
+                payload=json.dumps(pos_order_sync)
+                url = "http://smart-pos-dev.server002.weha-id.com/api/smartpos/v1.0/uploadtransaction"
+                response = requests.request("POST", url, headers=headers, data=payload)
+                if response.status_code == 200:
+                    print("Upload Transaction Successfully")
+                    response_json = response.json()
+                    result = response_json['result']
+                    print(result)
+                    if not result['err']:
+                        pos_order.sync = True 
+                        db.session.commit()
+                else:
+                    print(response.json())
+            else:
+                print(response.json())
+        except Exception as e:
+            print(e)
+
+    def post_update(self, item):
+        res = super().post_update(item)
+        #Upload Transaction
+        if item.state == 'paid':
+            print("Odoo - Upload Transaction")
+            #result = self.upload_transaction.delay(item.id)
+            #result.wait()
+            self.upload_transaction(item.id)
+        return res
 
     def pre_add(self, item):
         ir_sequence = db.session.query(models.IrSequence).filter_by(name='POS Order Sequence').first()
@@ -210,6 +303,15 @@ class DocumentTemplateRestApi(ModelRestApi):
     resource_name = "document_template"
     datamodel = SQLAInterface(models.DocumentTemplate)
 
+class ResPartnerRestApi(ModelRestApi):
+    resource_name = "res_partner"
+    datamodel = SQLAInterface(models.ResPartner)
+
+class PosTableRestApi(ModelRestApi):
+    resource_name = "pos_table"
+    datamodel = SQLAInterface(models.PosTable)
+
+
 appbuilder.add_api(DocumentTemplateRestApi)
 appbuilder.add_api(PosApi)
 appbuilder.add_api(PosCategoryRestApi)
@@ -220,4 +322,5 @@ appbuilder.add_api(PosOrderRestApi)
 appbuilder.add_api(PosOrderLineRestApi)
 appbuilder.add_api(PosOrderPaymentRestApi)
 appbuilder.add_api(AbUserRestApi)
-
+appbuilder.add_api(ResPartnerRestApi)
+appbuilder.add_api(PosTableRestApi)

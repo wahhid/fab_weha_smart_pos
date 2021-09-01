@@ -70,6 +70,7 @@ BABEL_DEFAULT_FOLDER = "translations"
 # The allowed translation for you app
 LANGUAGES = {
     "en": {"flag": "gb", "name": "English"},
+    "id": {"flag": "id", "name": "Indonesia"},
     # "pt": {"flag": "pt", "name": "Portuguese"},
     # "pt_BR": {"flag": "br", "name": "Pt Brazil"},
     # "es": {"flag": "es", "name": "Spanish"},
@@ -98,16 +99,23 @@ IMG_UPLOAD_URL = "/static/uploads/"
 # APP_THEME = "bootstrap-theme.css"  # default bootstrap
 # APP_THEME = "cerulean.css"
 # APP_THEME = "amelia.css"
-APP_THEME = "cosmo.css"
+# APP_THEME = "cosmo.css"
 # APP_THEME = "cyborg.css"
 # APP_THEME = "flatly.css" # 2
 # APP_THEME = "journal.css"
+# APP_THEME = "lumen.css"
+# APP_THEME = "paper.css"
 # APP_THEME = "readable.css" # 1
+# APP_THEME = "sandstone.css"
 # APP_THEME = "simplex.css"
 # APP_THEME = "slate.css"
+# APP_THEME = "solar.css"
 # APP_THEME = "spacelab.css"
+APP_THEME = "superhero.css"
 # APP_THEME = "united.css"
 # APP_THEME = "yeti.css"
+
+
 
 
 # FAB_SECURITY_MANAGER_CLASS = "app.sec.WehaSecurityManager"

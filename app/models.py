@@ -1,10 +1,11 @@
 #from typing import Text
 from flask_appbuilder import Model
+from flask_appbuilder.models.sqla import Base
 from sqlalchemy import Table, Column, Integer, String, ForeignKey, Float, Boolean, Date, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy import func
 from sqlalchemy.sql.elements import Label
-from flask_appbuilder.models.mixins import BaseMixin
+from flask_appbuilder.models.mixins import BaseMixin, ImageColumn
 from flask_appbuilder.security.sqla.models import User
 from flask import g
 from app import db
@@ -26,18 +27,17 @@ def get_user_id():
     except Exception:
         return None
 
-
 class IrSequence(BaseMixin, Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False, unique=True)
     prefix = Column(String(200))
     suffix = Column(String(200))
-    padding = Column(Integer, nullable=False)
+    padding = Column(Integer, nullable=False, default=5)
     next_number = Column(Integer, nullable=False, default=1)
     step = Column(Integer,  nullable=False, default=1)
 
     def get_next_number_by_name(self):
-        sequence = self.prefix + str(self.next_number).zfill(self.padding)
+        sequence = self.prefix + "/" + datetime.now().strftime('%Y') + "/" + datetime.now().strftime('%m') + "/" + datetime.now().strftime('%d') + "/" + str(self.next_number).zfill(self.padding)
         self.next_number = self.next_number + 1
         db.session.commit()
         return sequence
@@ -51,6 +51,8 @@ class DocumentTemplate(BaseMixin, Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(200), unique=True, nullable=False)
     code = Column(String(10), unique=True, nullable=False)
+    templ_heaeder = Column(Text())
+    templ_footer = Column(Text())
     templ = Column(Text())
 
     def __repr__(self):
@@ -84,9 +86,9 @@ class ProductProduct(BaseMixin, Model):
 
     id = Column(Integer, primary_key=True)
     display_name = Column(String(255))
-    lst_price = Column(Float)
-    standard_price = Column(Float)
-    disc_price = Column(Float)
+    lst_price = Column(Float, default=0.0)
+    standard_price = Column(Float, default=0.0)
+    disc_price = Column(Float, default=0.0)
     pos_categ_id = Column(Integer, ForeignKey("pos_category.id"), nullable=False)
     pos_category = relationship("PosCategory")
     taxes_id = Column(Integer)
@@ -98,6 +100,7 @@ class ProductProduct(BaseMixin, Model):
     description = Column(String(255))
     product_tmpl_id = Column(Integer)
     tracking = Column(String(20))
+    #image = Column(ImageColumn(size=(300, 300, True), thumbnail_size=(30, 30, True)))
     image_1920 = Column(String())
 
     def __repr__(self):
@@ -128,6 +131,7 @@ class PosConfig(BaseMixin, Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
     code = Column(String(5), unique=True)
+    type = Column(String(1))
     currency_id = Column(Integer)
     pricelist_id = Column(Integer)
     company_id = Column(Integer, ForeignKey("company.id"), nullable=True)
@@ -150,6 +154,7 @@ class PosSession(BaseMixin, Model):
     currency_id = Column(Integer)
     user_id = Column(Integer, ForeignKey("ab_user.id"), nullable=False)
     user = relationship("User")
+    amount_total = Column(Float, default=0.0)
     state = Column(String(20), default='open')
     creation_date = Column(DateTime, default=datetime.now())
     
@@ -182,6 +187,16 @@ class PosSession(BaseMixin, Model):
     #     self.state = 'closed'
     #     db.session.commit()
 
+class PosSessionLine(BaseMixin, Model):
+    __tablename__ = 'pos_session_line'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    pos_session_id = Column(Integer, ForeignKey("pos_session.id"), nullable=True)
+    pos_session  = relationship("PosSession")
+    payment_method_id = Column(Integer, ForeignKey("pos_payment_method.id"), nullable=False)
+    pos_payment_method =relationship("PosPaymentMethod")
+    amount_total = Column(Float, default=0.0)
+    
 class PosOrder(BaseMixin, Model):
     __tablename__ = 'pos_order'
 
@@ -194,7 +209,8 @@ class PosOrder(BaseMixin, Model):
     pos_session_id = Column(Integer, ForeignKey("pos_session.id"), nullable=True)
     pos_session  = relationship("PosSession")
     pricelist_id = Column(Integer)
-    partner_id = Column(Integer)
+    partner_id = Column(Integer, ForeignKey("res_partner.id"), nullable=True)
+    partner = relationship("ResPartner")
     user_id = Column(Integer, ForeignKey("ab_user.id"), nullable=True)
     user  = relationship("User")
     employee_id = Column(Integer)
@@ -206,6 +222,7 @@ class PosOrder(BaseMixin, Model):
     to_invoice = Column(Boolean)
     receipt_doc = Column(Text)
     state = Column(String(50), default='unpaid')
+    sync = Column(Boolean, default=False)
 
     def __repr__(self):
         return self.name
@@ -242,6 +259,17 @@ class PosOrder(BaseMixin, Model):
         else:
             return 0.0
 
+    @property
+    def total_discount(self):
+        # Put your query here
+        result = db.session.query(
+          PosOrderLine.order_id,
+          Label('amount_total', func.sum(PosOrderLine.price_subtotal))).group_by(PosOrderLine.order_id).filter_by(order_id=self.id).first()
+        if result:
+            return result.amount_total
+        else:
+            return 0
+
 class PosOrderLine(BaseMixin, Model):
     __tablename__ = 'pos_order_line'
 
@@ -252,10 +280,10 @@ class PosOrderLine(BaseMixin, Model):
     product_id = Column(Integer, ForeignKey("product_product.id"), nullable=True)
     product  = relationship("ProductProduct")
     price_unit = Column(Float)
+    discount = Column(Float)
     qty = Column(Float)
     price_subtotal = Column(Float)
-    price_subtotal_incl = Column(Float)
-    discount = Column(Float)
+    price_subtotal_incl = Column(Float) #Include Tax
     order_id = Column(Integer, ForeignKey("pos_order.id"), nullable=False)
     order = relationship("PosOrder")
     product_uom_id = Column(Integer)
@@ -273,4 +301,31 @@ class PosPayment(BaseMixin, Model):
     payment_method_id = Column(Integer, ForeignKey("pos_payment_method.id"), nullable=False)
     pos_payment_method =relationship("PosPaymentMethod")
     session_id = Column(Integer)
-    
+
+class ResPartner(BaseMixin, Model):
+    __tablename__ = 'res_partner'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255))
+    barcode = Column(String(20), unique=True)
+    type = Column(String(255), default='contact')
+    phone = Column(String(50))
+    mobile = Column(String(50))
+
+    def __repr__(self):
+        return self.name
+
+class PosFloor(BaseMixin, Model):
+    __tablename__ = 'pos_floor'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255))
+
+class PosTable(BaseMixin, Model):
+    __tablename__ = 'pos_table'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255))
+    capacity = Column(Integer, default=1)
+    #pos_floor_id = Column(Integer, ForeignKey("pos_floor.id"), nullable=False)
+    #pos_floor =relationship("PosFloor")
