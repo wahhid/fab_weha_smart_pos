@@ -6,5 +6,7 @@ app.db
 env
 venv
 *.sublime*
-initPosRestaurant.py
-initPosRetail.py
+./migrations
+app.db.bak
+initPosRestaurant
+initPosRetail
